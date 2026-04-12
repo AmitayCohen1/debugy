@@ -1,8 +1,8 @@
 # Debugy Skill
 
-Give your coding agent runtime visibility. Debugy is a skill that lets your agent write `debugy.log()` calls, read the output, and fix bugs based on what actually happened — not just what the code looks like.
+Give your coding agent runtime visibility. Debugy captures your dev server output to a file the agent can read, and lets it add targeted `debugy.log()` calls when it needs deeper insight.
 
-Logs save to `.debugy/session.ndjson` locally. No server, no API keys, no network.
+No server, no API keys, no network. Just local files.
 
 ## Quick start
 
@@ -29,13 +29,12 @@ Copy the contents of `codex/AGENTS.md` into your project's `AGENTS.md` file. If 
 ## How it works
 
 1. Paste the skill into your agent
-2. Hit a bug — your agent adds `debugy.log()` calls at the right spots
-3. You run the app
-4. Logs save to `.debugy/session.ndjson`
-5. Your agent reads the file, sees what actually happened, and fixes the bug
-6. It removes the log calls when done
-
-Uncaught errors and unhandled rejections are also captured automatically.
+2. Start your dev server with `<your-dev-command> 2>&1 | tee .debugy/server.log`
+3. Hit a bug — your agent reads `.debugy/server.log` for errors and stack traces
+4. If it needs more detail, it adds `debugy.log()` calls at targeted spots
+5. You reproduce the issue
+6. Your agent reads the logs, sees what actually happened, and fixes the bug
+7. It removes the temporary log calls when done
 
 ## Language support
 

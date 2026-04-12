@@ -10,11 +10,29 @@ Treat Debugy as a reusable Claude skill. Use it when static code reading is not 
 
 ## How It Works
 
-Logs are written to `.debugy/session.ndjson` — one JSON object per line. The agent reads this file to get runtime evidence. No server, no API keys, no network.
+Debugy gives you two sources of runtime evidence:
+
+1. **Server log** — `.debugy/server.log` captures all dev server output (errors, warnings, stack traces) passively. Capped at the last 500 lines so it stays readable.
+2. **Session log** — `.debugy/session.ndjson` captures structured `debugy.log()` calls you add for targeted visibility.
+
+No network, no API keys. Just local files the agent reads.
 
 ## Setup
 
-Add the logger to the project. Here's a TypeScript example — if the project uses a different language, implement the same behavior in that language:
+### 1. Server Log Capture
+
+Start the dev server with output piped to `.debugy/server.log`:
+
+```bash
+mkdir -p .debugy
+<your-dev-command> 2>&1 | tee .debugy/server.log
+```
+
+This captures everything the framework logs — errors, stack traces, warnings, request logs — automatically.
+
+### 2. Structured Logger (optional)
+
+For targeted instrumentation, add the Debugy logger. Here's a TypeScript example — if the project uses a different language, implement the same behavior in that language:
 
 ```ts
 // lib/debugy.ts
@@ -71,21 +89,6 @@ Make sure `.debugy/` is in `.gitignore`.
 
 Add `DEBUGY_ENV=development` to your `.env` file. This tells Debugy to save logs locally. Without it, logging is disabled. For production cloud logging, set `DEBUGY_ENV=production` instead.
 
-## Auto Error Capture
-
-When setting up the logger, also register global error and exception handlers for the project's language so that uncaught errors are automatically logged to `.debugy/session.ndjson` with `level: "error"` and the stack trace in `metadata.stack`.
-
-Examples of what to hook into (adapt to the project's language):
-- **Node.js**: `process.on('uncaughtException')`, `process.on('unhandledRejection')`
-- **Python**: `sys.excepthook`, `threading.excepthook`
-- **Go**: `recover()` in a top-level deferred function
-- **Browser**: `window.addEventListener('error')`, `window.addEventListener('unhandledrejection')`
-
-Register these handlers once at app startup. Important:
-- Do not suppress the original error behavior (e.g. still exit after uncaught exceptions in Node)
-- Avoid double-logging errors that are already caught and logged by `debugy.log()`
-- Skip framework noise that is not actionable (e.g. HMR, hydration warnings)
-
 ## After Install
 
 Once setup is complete, scan the codebase and suggest 3-5 high-value places to add permanent `debugy.log()` calls — API entry points, error handlers, auth flows, database queries, or external service calls. Present them to the user for approval before adding.
@@ -93,50 +96,65 @@ Once setup is complete, scan the codebase and suggest 3-5 high-value places to a
 ## Workflow
 
 When asked to debug with Debugy:
-1. Clear `.debugy/session.ndjson` to start a fresh session
-2. Add `debugy.log()` calls where runtime visibility is missing — use `level: "info"` for general flow, `level: "error"` for failures
-3. Ask the user to run or reproduce the issue
-4. Read `.debugy/session.ndjson`, diagnose errors, warnings, timings, and patterns
-5. Apply the fix
-6. Remove temporary Debugy calls when done (keep any permanent ones the user approved)
+1. Clear logs to start a fresh session
+2. Check `.debugy/server.log` first for errors, stack traces, and warnings
+3. If more visibility is needed, add `debugy.log()` calls at targeted spots — use `level: "info"` for general flow, `level: "error"` for failures
+4. Ask the user to run or reproduce the issue
+5. Read both `.debugy/server.log` and `.debugy/session.ndjson`, diagnose errors, warnings, timings, and patterns
+6. Apply the fix
+7. Remove temporary Debugy calls when done (keep any permanent ones the user approved)
 
 ## Reading Logs
 
-Read the full session:
+Server output (framework errors, stack traces):
+```bash
+cat .debugy/server.log
+```
+
+Last 50 lines of server output:
+```bash
+tail -50 .debugy/server.log
+```
+
+Errors in server log:
+```bash
+grep -i 'error' .debugy/server.log
+```
+
+Structured session logs:
 ```bash
 cat .debugy/session.ndjson
 ```
 
-Errors only:
+Errors only (session):
 ```bash
 grep '"level":"error"' .debugy/session.ndjson
 ```
 
-Last 50 entries:
-```bash
-tail -50 .debugy/session.ndjson
-```
-
 Search for a term:
 ```bash
-grep '<QUERY>' .debugy/session.ndjson
+grep '<QUERY>' .debugy/server.log .debugy/session.ndjson
 ```
 
 ## Clear Logs
 
 Start a fresh session:
 ```bash
-rm -f .debugy/session.ndjson
+rm -f .debugy/session.ndjson .debugy/server.log
 ```
 
 ## Housekeeping
 
-- Clear the session file at the start of each new debug workflow
-- If the file exceeds ~500 lines mid-session, keep only the latest 200:
+- Clear log files at the start of each new debug workflow
+- Keep `.debugy/server.log` capped at 500 lines. If it exceeds that, truncate:
+  ```bash
+  tail -500 .debugy/server.log > .debugy/server.tmp && mv .debugy/server.tmp .debugy/server.log
+  ```
+- If `.debugy/session.ndjson` exceeds ~500 lines mid-session, keep only the latest 200:
   ```bash
   tail -200 .debugy/session.ndjson > .debugy/session.tmp && mv .debugy/session.tmp .debugy/session.ndjson
   ```
-- Always inform the user when cleaning up: how many debugy.log() calls were removed, whether the session file was cleared or truncated, and how many lines were kept
+- Always inform the user when cleaning up: how many debugy.log() calls were removed, whether files were cleared or truncated, and how many lines were kept
 
 ## debugy.log() Contract
 
@@ -151,6 +169,7 @@ debugy.log(file, fn, message, { level?, duration_ms?, metadata? })
 ## Rules
 
 - Ask before adding logs or running code
+- Check `.debugy/server.log` before adding manual instrumentation — the error might already be there
 - Prefer high-signal logs with real values in `metadata`
 - Focus on API entry/exit, external calls, decision branches, async boundaries, and error paths
 - Remove Debugy calls when debugging is complete
