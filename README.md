@@ -40,6 +40,21 @@ Copy the contents of `codex/AGENTS.md` into your project's `AGENTS.md` file. If 
 
 The instructions include a TypeScript example, but the agent adapts to whatever language your project uses — Python, Go, Ruby, etc. The log format and file path are the same.
 
+## Housekeeping
+
+Log files can grow during long sessions. The skill instructions tell your agent to manage this automatically, but you can also do it manually:
+
+```bash
+# Cap server.log at the last 500 lines
+tail -500 .debugy/server.log > .debugy/server.tmp && mv .debugy/server.tmp .debugy/server.log
+
+# Keep only the latest 200 structured log entries
+tail -200 .debugy/session.ndjson > .debugy/session.tmp && mv .debugy/session.tmp .debugy/session.ndjson
+
+# Start fresh
+rm -f .debugy/session.ndjson .debugy/server.log
+```
+
 ## Cloud mode
 
 For production logging, check out [debugy.dev](https://www.debugy.dev). Cloud mode sends logs to a hosted API so your agent can debug real-world issues.
