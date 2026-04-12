@@ -30,18 +30,13 @@ This captures everything the framework logs — errors, stack traces, warnings, 
 
 ### 2. Structured Logger (optional)
 
-For targeted instrumentation, add the Debugy logger. Here's a TypeScript example — if the project uses a different language, implement the same behavior in that language:
+For targeted instrumentation, add the Debugy logger. Here's a TypeScript example for local mode — if the project uses a different language, implement the same behavior in that language:
 
 ```ts
 // lib/debugy.ts
 import { appendFileSync, mkdirSync } from "node:fs";
 
-const DEBUGY_URL = "https://www.debugy.dev/api/logs";
 const DEBUGY_ENV = process.env.DEBUGY_ENV ?? "";
-const WRITE_KEY = process.env.DEBUGY_WRITE_KEY ?? "";
-const PROJECT = process.env.DEBUGY_PROJECT ?? "default";
-const IS_LOCAL = DEBUGY_ENV === "development";
-const IS_CLOUD = !!DEBUGY_ENV && !IS_LOCAL && !!WRITE_KEY;
 
 function log(file: string, fn: string, message: string, opts: { level?: string; duration_ms?: number; metadata?: Record<string, string | number | boolean | null> } = {}) {
   const entry = {
@@ -55,14 +50,7 @@ function log(file: string, fn: string, message: string, opts: { level?: string; 
     ...(opts.metadata && { metadata: opts.metadata }),
   };
 
-  if (IS_CLOUD) {
-    // Cloud: POST to Debugy API
-    fetch(DEBUGY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${WRITE_KEY}` },
-      body: JSON.stringify({ ...entry, project: PROJECT }),
-    }).catch((e) => console.warn("debugy:", e.message));
-  } else if (IS_LOCAL) {
+  if (DEBUGY_ENV === "development") {
     if (typeof window !== "undefined") {
       // Browser: POST to local dev server
       fetch("/api/debugy", {
@@ -78,13 +66,13 @@ function log(file: string, fn: string, message: string, opts: { level?: string; 
       } catch {}
     }
   }
-  // No DEBUGY_ENV → no-op (safe in production without keys)
+  // No DEBUGY_ENV → no-op
 }
 
 export const debugy = { log };
 ```
 
-**Client-side logs (local mode):** If the project has browser code and uses local mode, add a local API route so client logs reach the same file. Here's a Next.js example — adapt for your framework:
+**Client-side logs (local mode):** If the project has browser code, add a local API route so client logs reach the same file. Here's a Next.js example — adapt for your framework:
 
 ```ts
 // app/api/debugy/route.ts
@@ -98,11 +86,9 @@ export async function POST(req: Request) {
 }
 ```
 
-In cloud mode, client-side logs POST directly to the Debugy API — no local route needed.
-
 Make sure `.debugy/` is in `.gitignore`.
 
-Add `DEBUGY_ENV=development` to your `.env` file. This tells Debugy to save logs locally. Without it, logging is disabled. For production cloud logging, set `DEBUGY_ENV=production` instead.
+Add `DEBUGY_ENV=development` to your `.env` file. This tells Debugy to save logs locally. Without it, logging is disabled.
 
 ## After Install
 
@@ -196,11 +182,3 @@ debugy.log(file, fn, message, { level?, duration_ms?, metadata? })
 - Prefer high-signal logs with real values in `metadata`
 - Focus on API entry/exit, external calls, decision branches, async boundaries, and error paths
 - Remove Debugy calls when debugging is complete
-
-## Cloud Mode
-
-`DEBUGY_ENV` decides where logs go. When set to `development`, logs save to the local file. Any other value (`production`, `staging`, etc.) with `DEBUGY_WRITE_KEY` set sends logs to the cloud API. If `DEBUGY_ENV` is not set, logging is disabled. The agent reads cloud logs via `DEBUGY_AGENT_KEY`.
-
-## Log Retention (Cloud)
-
-Cloud logs on the free tier are kept for 15 days and capped at 5,000 per project. Oldest logs are auto-deleted when limits are exceeded. Monthly quota is 5,000 log calls, resetting each calendar month. Local logs have no limits.
