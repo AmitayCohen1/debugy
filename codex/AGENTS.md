@@ -30,9 +30,11 @@ For targeted instrumentation, add the Debugy logger. Here's a TypeScript example
 
 ```ts
 // lib/debugy.ts
+import { appendFileSync, mkdirSync } from "node:fs";
+
 const DEBUGY_URL = "https://www.debugy.dev/api/logs";
 const DEBUGY_ENV = process.env.DEBUGY_ENV ?? "";
-const WRITE_KEY = process.env.NEXT_PUBLIC_DEBUGY_WRITE_KEY ?? process.env.DEBUGY_WRITE_KEY ?? "";
+const WRITE_KEY = process.env.DEBUGY_WRITE_KEY ?? "";
 const PROJECT = process.env.DEBUGY_PROJECT ?? "default";
 const IS_LOCAL = DEBUGY_ENV === "development";
 const IS_CLOUD = !!DEBUGY_ENV && !IS_LOCAL && !!WRITE_KEY;
@@ -67,9 +69,8 @@ function log(file: string, fn: string, message: string, opts: { level?: string; 
     } else {
       // Node.js: write directly to file
       try {
-        const fs = require("fs");
-        fs.mkdirSync(".debugy", { recursive: true });
-        fs.appendFileSync(".debugy/session.ndjson", JSON.stringify(entry) + "\n");
+        mkdirSync(".debugy", { recursive: true });
+        appendFileSync(".debugy/session.ndjson", JSON.stringify(entry) + "\n");
       } catch {}
     }
   }
@@ -83,12 +84,12 @@ export const debugy = { log };
 
 ```ts
 // app/api/debugy/route.ts
-import { writeFileSync, mkdirSync } from "fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 
 export async function POST(req: Request) {
   const entry = await req.json();
   mkdirSync(".debugy", { recursive: true });
-  writeFileSync(".debugy/session.ndjson", JSON.stringify(entry) + "\n", { flag: "a" });
+  appendFileSync(".debugy/session.ndjson", JSON.stringify(entry) + "\n");
   return new Response("ok");
 }
 ```
