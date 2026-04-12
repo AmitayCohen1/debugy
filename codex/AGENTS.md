@@ -1,28 +1,27 @@
-## Debugy
+## Debugy Local
 
 This section is intended to live inside your repository AGENTS.md alongside the rest of your project guidance. Merge it instead of replacing unrelated instructions.
 
-### Two log sources
+Use Debugy Local when static code reading is not enough and you need runtime evidence from a local reproduction.
 
-1. **Server log** (local dev only) — `.debugy/server.log` passively captures all dev server output. Check this first — the error is often already there.
-2. **`debugy.log()`** (local + cloud) — structured logs you add for targeted visibility. `DEBUGY_ENV` decides where they go:
-   - `development` → `.debugy/session.ndjson`
-   - `production` → Debugy Cloud
-   - not set → disabled
+## Two local log sources
+
+1. **Server log** — `.debugy/server.log` passively captures all dev server output. Check this first — the error is often already there.
+2. **`debugy.log()`** — structured logs you add for targeted visibility. In Debugy Local, logs write to `.debugy/session.ndjson` when `DEBUGY_ENV=development`. If `DEBUGY_ENV` is not set, logging stays disabled.
 
 Always use `debugy.log()`. Never build a custom logger or HTTP client. Adapt the template below to the project's language.
 
-### Logger template
+## Logger template
 
 ```ts
 // lib/debugy.ts
 import { appendFileSync, mkdirSync } from "node:fs";
 
 const DEBUGY_ENV = process.env.DEBUGY_ENV ?? "";
-const DEBUGY_WRITE_KEY = process.env.DEBUGY_WRITE_KEY ?? "";
-const DEBUGY_CLOUD_URL = "https://www.debugy.dev";
 
 function log(file: string, fn: string, message: string, opts: { level?: string; duration_ms?: number; metadata?: Record<string, string | number | boolean | null> } = {}) {
+  if (DEBUGY_ENV !== "development") return;
+
   const entry = {
     timestamp: new Date().toISOString(),
     level: opts.level ?? "info",
@@ -34,25 +33,20 @@ function log(file: string, fn: string, message: string, opts: { level?: string; 
     ...(opts.metadata && { metadata: opts.metadata }),
   };
 
-  if (DEBUGY_ENV === "production" && DEBUGY_WRITE_KEY) {
-    fetch(`${DEBUGY_CLOUD_URL}/api/logs`, {
+  if (typeof window !== "undefined") {
+    fetch("/api/debugy", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEBUGY_WRITE_KEY}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entry),
     }).catch(() => {});
-  } else if (DEBUGY_ENV === "development") {
-    if (typeof window !== "undefined") {
-      fetch("/api/debugy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(entry),
-      }).catch(() => {});
-    } else {
-      try {
-        mkdirSync(".debugy", { recursive: true });
-        appendFileSync(".debugy/session.ndjson", JSON.stringify(entry) + "\n");
-      } catch { console.warn("debugy: failed to write log"); }
-    }
+    return;
+  }
+
+  try {
+    mkdirSync(".debugy", { recursive: true });
+    appendFileSync(".debugy/session.ndjson", JSON.stringify(entry) + "\n");
+  } catch {
+    console.warn("debugy-local: failed to write log");
   }
 }
 
@@ -61,7 +55,7 @@ export const debugy = { log };
 
 If the project uses a different language, implement the same behavior.
 
-**Browser logs (local mode):** Add a local API route so client logs reach the same file:
+**Browser logs:** Add a local API route so client logs reach the same file:
 
 ```ts
 // app/api/debugy/route.ts
@@ -75,27 +69,27 @@ export async function POST(req: Request) {
 }
 ```
 
-### Setup
+## Setup
 
 1. Add `.debugy/` to `.gitignore`.
-2. Create a dev:debugy script that pipes server output to `.debugy/server.log`:
+2. Create a `dev:debugy` script that pipes server output to `.debugy/server.log`:
    - **Node.js:** `"dev:debugy": "mkdir -p .debugy && FORCE_COLOR=1 npm run dev 2>&1 | tee .debugy/server.log"`
    - **Python:** `mkdir -p .debugy && FORCE_COLOR=1 python manage.py runserver 2>&1 | tee .debugy/server.log`
    - **Go:** `mkdir -p .debugy && FORCE_COLOR=1 go run . 2>&1 | tee .debugy/server.log`
-3. Suggest 3-5 high-value places for permanent `debugy.log()` calls — API entry points, error handlers, auth flows. Present to the user before adding.
+3. Set `DEBUGY_ENV=development` in the app env when you want structured local logs.
+4. Suggest 3-5 high-value places for temporary `debugy.log()` calls. Present them to the user before adding them.
 
-### Workflow
+## Workflow
 
 1. Clear logs: `rm -f .debugy/session.ndjson .debugy/server.log`
 2. Check `.debugy/server.log` first for errors and stack traces
 3. If more visibility is needed, add `debugy.log()` calls at targeted spots
-4. Ask the user to reproduce the issue
+4. Ask the user to reproduce the issue locally
 5. Read logs, diagnose, fix
 6. Remove temporary `debugy.log()` calls when done
 
-### Reading logs
+## Reading logs
 
-**Local:**
 ```bash
 cat .debugy/server.log
 cat .debugy/session.ndjson
@@ -103,9 +97,7 @@ grep -i 'error' .debugy/server.log
 grep '"level":"error"' .debugy/session.ndjson
 ```
 
-**Cloud:** fetch with `DEBUGY_AGENT_KEY` — see the setup prompt for API details.
-
-### debugy.log() contract
+## `debugy.log()` contract
 
 ```
 debugy.log(file, fn, message, { level?, duration_ms?, metadata? })
@@ -114,14 +106,14 @@ debugy.log(file, fn, message, { level?, duration_ms?, metadata? })
 - Fire-and-forget; never await in hot paths
 - Never log secrets, tokens, credentials, or PII
 
-### Rules
+## Rules
 
 - Ask before adding logs or running code
-- Check server.log before adding manual instrumentation
+- Check `server.log` before adding manual instrumentation
 - Prefer high-signal logs with real values in `metadata`
 - Remove temporary Debugy calls when debugging is complete
 
-### Housekeeping
+## Housekeeping
 
 - Cap `.debugy/server.log` at 500 lines: `tail -500 .debugy/server.log > .debugy/server.tmp && mv .debugy/server.tmp .debugy/server.log`
 - Cap `.debugy/session.ndjson` at 200 lines: `tail -200 .debugy/session.ndjson > .debugy/session.tmp && mv .debugy/session.tmp .debugy/session.ndjson`
