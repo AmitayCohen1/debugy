@@ -107,7 +107,15 @@ Add `DEBUGY_ENV=development` to your `.env` file. This tells Debugy to save logs
 
 ## After Install
 
-Once setup is complete, scan the codebase and suggest 3-5 high-value places to add permanent `debugy.log()` calls — API entry points, error handlers, auth flows, database queries, or external service calls. Present them to the user for approval before adding.
+Once setup is complete:
+
+1. **Create a dev:debugy script.** Detect the project's dev command and create a convenient way to run it with server log capture. Examples:
+   - **Node.js (package.json):** add `"dev:debugy": "mkdir -p .debugy && npm run dev 2>&1 | tee .debugy/server.log"`
+   - **Python:** create `scripts/dev-debugy.sh` with `mkdir -p .debugy && python manage.py runserver 2>&1 | tee .debugy/server.log`
+   - **Go:** create `scripts/dev-debugy.sh` with `mkdir -p .debugy && go run . 2>&1 | tee .debugy/server.log`
+   - Adapt the dev command to whatever the project actually uses.
+
+2. **Suggest 3-5 high-value places** to add permanent `debugy.log()` calls — API entry points, error handlers, auth flows, database queries, or external service calls. Present them to the user for approval before adding.
 
 ## Workflow
 
