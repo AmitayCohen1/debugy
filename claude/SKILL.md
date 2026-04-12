@@ -38,7 +38,7 @@ For targeted instrumentation, add the Debugy logger. Here's a TypeScript example
 // lib/debugy.ts
 const DEBUGY_ENV = process.env.DEBUGY_ENV ?? "";
 
-function log(file: string, fn: string, message: string, opts: { level?: string; duration_ms?: number; metadata?: Record<string, unknown> } = {}) {
+function log(file: string, fn: string, message: string, opts: { level?: string; duration_ms?: number; metadata?: Record<string, string | number | boolean | null> } = {}) {
   const entry = {
     timestamp: new Date().toISOString(),
     level: opts.level ?? "info",
@@ -162,7 +162,7 @@ rm -f .debugy/session.ndjson .debugy/server.log
 debugy.log(file, fn, message, { level?, duration_ms?, metadata? })
 ```
 
-- Always pass `file`, `fn`, and `message`
+- `message` is required; `file` and `fn` are optional but recommended
 - Fire-and-forget; never await in hot paths
 - Never log secrets, tokens, credentials, or PII
 
@@ -176,4 +176,4 @@ debugy.log(file, fn, message, { level?, duration_ms?, metadata? })
 
 ## Cloud Mode
 
-`DEBUGY_ENV` decides where logs go. In development (default), logs save to the local file. When `DEBUGY_ENV=production` (or `staging`, etc.) and `DEBUGY_WRITE_KEY` is set, logs go to the cloud API instead. The agent reads cloud logs via `DEBUGY_AGENT_KEY`.
+`DEBUGY_ENV` decides where logs go. When set to `development`, logs save to the local file. Any other value (`production`, `staging`, etc.) with `DEBUGY_WRITE_KEY` set sends logs to the cloud API. If `DEBUGY_ENV` is not set, logging is disabled. The agent reads cloud logs via `DEBUGY_AGENT_KEY`.
