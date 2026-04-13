@@ -1,6 +1,8 @@
-## Debugy
+---
+description: Use Debugy when a task needs runtime evidence from local or deployed environments.
+---
 
-This section is intended to live inside your repository AGENTS.md alongside the rest of your project guidance. Merge it instead of replacing unrelated instructions.
+# Debugy
 
 Use Debugy when static code reading is not enough and you need runtime evidence.
 
