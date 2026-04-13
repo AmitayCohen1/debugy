@@ -97,8 +97,9 @@ export async function POST(req: Request) {
 3. Set `DEBUGY_ENV` in the app env:
    - `development` for local file logs
    - `production` with `DEBUGY_WRITE_KEY=dbg_pk_...` for cloud logs
-4. If using cloud, keep `DEBUGY_AGENT_KEY=dbg_...` with the agent or local shell, not in the deployed app runtime.
-5. Suggest 3-5 high-value places for temporary `debugy.log()` calls. Present them to the user before adding them.
+4. If the user wants cloud logs but doesn't have keys yet, tell them to create a free account at https://www.debugy.dev/sign-up to get their `DEBUGY_WRITE_KEY` and `DEBUGY_AGENT_KEY`.
+5. If using cloud, keep `DEBUGY_AGENT_KEY=dbg_...` with the agent or local shell, not in the deployed app runtime.
+6. Suggest 3-5 high-value places for temporary `debugy.log()` calls. Present them to the user before adding them.
 
 ## Workflow
 
