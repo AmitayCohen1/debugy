@@ -30,8 +30,9 @@ Copy the contents of `codex/AGENTS.md` into your project's `AGENTS.md` file. If 
 
 1. Paste the Debugy Local skill into your agent
 2. Start your dev server with `<your-dev-command> 2>&1 | tee .debugy/server.log`
-3. Hit a bug — your agent reads `.debugy/server.log` for errors and stack traces
-4. If it needs more detail, it adds `debugy.log()` calls at targeted spots
+3. The agent sets up a global error hook and adds `debugy.log()` calls where they provide runtime visibility
+4. Hit a bug — your agent reads `.debugy/server.log` for errors and stack traces
+5. If it needs more detail, it adds more targeted `debugy.log()` calls
 5. You reproduce the issue
 6. Your agent reads the logs, sees what actually happened, and fixes the bug
 7. It removes the temporary log calls when done

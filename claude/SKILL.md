@@ -73,7 +73,30 @@ Content-Type: application/json
 
 ## After install
 
-Once setup is complete, scan the repo and suggest 3-5 high-value places where `debugy.log()` calls would give the most runtime visibility (e.g. API route handlers, database calls, authentication flows, error boundaries). Present them to the user before adding any. This helps the user understand how Debugy works and immediately get value from it.
+Once setup is complete, scan the repo and add `debugy.log()` calls wherever they would give valuable runtime visibility — API route handlers, database calls, authentication flows, error boundaries, external service integrations, etc. Use your judgment on what matters for this specific codebase. These are permanent observability logs, not temporary debug calls.
+
+Never log sensitive data — no passwords, tokens, API keys, session IDs, emails, or any PII. When you need context about a value, log its shape, not the value itself (e.g. `userId length: 36`, not the actual userId).
+
+Also set up a global unhandled-error hook so unexpected errors are automatically captured. Use the runtime's built-in mechanism — adapt to whatever stack the project uses. Two examples:
+
+**Node.js / Next.js** (in `instrumentation.ts` or server entry):
+```ts
+process.on("unhandledRejection", (reason) => {
+  debugy.log("global", "unhandledRejection", String(reason), { level: "error" });
+});
+```
+
+**Python** (in entry point):
+```python
+import sys
+_default = sys.__excepthook__
+def _handle(exc_type, exc_value, exc_tb):
+    debugy.log("global", "unhandledException", str(exc_value), level="error")
+    _default(exc_type, exc_value, exc_tb)
+sys.excepthook = _handle
+```
+
+For other stacks, find the equivalent global hook (`recover` in Go, `at_exit` in Ruby, `window.onunhandledrejection` routed through a server endpoint for browser code, etc.). If the framework already has its own error handler, hook into that instead of fighting it.
 
 ## Workflow
 
@@ -114,7 +137,6 @@ debugy.log(file, fn, message, { level?, duration_ms?, metadata? })
 
 ## Rules
 
-- Ask before adding logs or running code
 - `debugy.log()` is server-only — never import it from client/browser code, never modify the module to make it client-compatible
 - Keep `DEBUGY_AGENT_KEY` with the agent, never in deployed app env
 - Prefer high-signal logs with real values in `metadata`
