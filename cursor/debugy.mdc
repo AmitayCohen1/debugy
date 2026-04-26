@@ -95,6 +95,8 @@ Set up a global error hook so unhandled errors are captured automatically — th
 
 Look for `DEBUGY_AGENT_KEY` in `.env`, `.env.local`, or the shell environment. If not found, tell the user to create a free account at https://www.debugy.dev/sign-up to get their keys.
 
+If the response includes a `notice` field, surface it to the user before continuing — it signals limits (e.g. monthly write quota exhausted) that affect what you can see.
+
 You can filter by `level`, `file`, `fn`, `search`, `limit`, and `offset`:
 
 ```bash
