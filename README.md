@@ -1,64 +1,69 @@
-# Debugy Local
+# Debugy
 
-Give your coding agent runtime visibility during local development. Debugy Local captures your dev server output to a file the agent can read, and lets it add targeted `debugy.log()` calls when it needs deeper insight.
+A dead-simple log API for your coding agent. Any service or pipeline POSTs its logs; your agent fetches them back. One key, no SDK, no infra — just an env var and HTTP.
 
-No server, no API keys, no network. Just local files on your machine.
+## How it works
+
+1. **Write** — any service POSTs a log to `https://www.debugy.dev/api/logs` with `DEBUGY_KEY`.
+2. **Read** — your agent fetches logs from the same endpoint with the same key, filtered by service, level, or text.
+
+That's it. One bucket, every pipeline writes to it, the agent reads it.
 
 ## Quick start
+
+1. Create a free account at https://www.debugy.dev/sign-up to get your `DEBUGY_KEY`.
+2. Set `DEBUGY_KEY=dbg_...` in any service that should log, and keep it available to your agent / shell.
+3. Give your agent the Debugy instructions for your tool (below).
+
+### Write a log (any language)
+
+```bash
+curl -X POST "https://www.debugy.dev/api/logs" \
+  -H "Authorization: Bearer $DEBUGY_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"service":"checkout-api","level":"error","message":"payment declined","metadata":{"code":402}}'
+```
+
+- `service` (required) — which pipeline/service the log came from
+- `message` (required) — the log line
+- `level` (optional) — `debug` | `info` | `warn` | `error` (default `info`)
+- `metadata` (optional) — any JSON object
+
+### Read logs (the agent)
+
+```bash
+curl -s "https://www.debugy.dev/api/logs?service=checkout-api&level=error&limit=100" \
+  -H "Authorization: Bearer $DEBUGY_KEY"
+```
+
+Filters: `service`, `level`, `search`, `limit`, `offset`.
+
+## Install the agent instructions
 
 Pick your agent and copy the file into your project:
 
 ### Claude Code
 
 ```bash
-mkdir -p .claude/skills/debugy-local
-cp claude/SKILL.md .claude/skills/debugy-local/SKILL.md
+mkdir -p .claude/skills/debugy
+cp claude/SKILL.md .claude/skills/debugy/SKILL.md
 ```
 
 ### Cursor
 
 ```bash
 mkdir -p .cursor/rules
-cp cursor/debugy-local.mdc .cursor/rules/debugy-local.mdc
+cp cursor/debugy.mdc .cursor/rules/debugy.mdc
 ```
 
 ### Codex
 
-Copy the contents of `codex/AGENTS.md` into your project's `AGENTS.md` file. If you already have one, add the `## Debugy Local` section — don't replace existing instructions.
+Copy the contents of `codex/AGENTS.md` into your project's `AGENTS.md`. If you already have one, add the `## Debugy` section — don't replace existing instructions.
 
-## How it works
+## Safety
 
-1. Paste the Debugy Local skill into your agent
-2. Start your dev server with `<your-dev-command> 2>&1 | tee .debugy/server.log`
-3. The agent sets up a global error hook and adds `debugy.log()` calls where they provide runtime visibility
-4. Hit a bug — your agent reads `.debugy/server.log` for errors and stack traces
-5. If it needs more detail, it adds more targeted `debugy.log()` calls
-5. You reproduce the issue
-6. Your agent reads the logs, sees what actually happened, and fixes the bug
-7. It removes the temporary log calls when done
-
-## Language support
-
-The instructions include a TypeScript example, but the agent adapts to whatever language your project uses — Python, Go, Ruby, etc. The log format and file path are the same.
-
-## Housekeeping
-
-Log files can grow during long sessions. The skill instructions tell your agent to manage this automatically, but you can also do it manually:
-
-```bash
-# Cap server.log at the last 500 lines
-tail -500 .debugy/server.log > .debugy/server.tmp && mv .debugy/server.tmp .debugy/server.log
-
-# Keep only the latest 200 structured log entries
-tail -200 .debugy/session.ndjson > .debugy/session.tmp && mv .debugy/session.tmp .debugy/session.ndjson
-
-# Start fresh
-rm -f .debugy/session.ndjson .debugy/server.log
-```
-
-## Cloud mode
-
-For staging and production logging, check out [debugy.dev](https://www.debugy.dev). Debugy Cloud is a separate hosted skill for remote incidents.
+- Never log secrets or PII — passwords, tokens, keys, session IDs, emails. Log shapes, not values.
+- Keep `DEBUGY_KEY` server-side; route browser logs through a server endpoint. Never put the key in client code.
 
 ## Community
 
