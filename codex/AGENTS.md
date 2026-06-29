@@ -4,11 +4,11 @@ This section is intended to live inside your repository AGENTS.md alongside the 
 
 Debugy is a dead-simple log API. Any service or pipeline POSTs logs; you fetch them back. One key for both, no SDK, no setup — just an env var and HTTP.
 
-### Key
+## Key
 
 `DEBUGY_KEY` (`dbg_...`) — one key. Services write with it, the agent reads with it. Get it free at https://www.debugy.dev/sign-up. Keep it server-side; never expose it to a browser.
 
-### Writing logs
+## Writing logs
 
 One HTTP POST from anywhere — any language, any service:
 
@@ -28,7 +28,7 @@ Fields:
 
 The server stamps `timestamp` and an `id`.
 
-#### Optional helper (JS/TS)
+### Optional helper (JS/TS)
 
 If a project logs from many spots, drop in a one-function helper instead of repeating the fetch:
 
@@ -47,7 +47,7 @@ export function debugy(service: string, message: string, opts: { level?: string;
 
 Keep the key server-side. For browser logs, route them through a server endpoint that calls this — never put the key in client code. Same idea in any other language: a plain HTTP POST is enough.
 
-### Reading logs (say `debugy`)
+## Reading logs (`debugy`)
 
 When the user says `debugy`, fetch recent logs with `DEBUGY_KEY` (check `.env`, `.env.local`, or the shell env). Filter by `service`, `level`, `search`, `limit`, and `offset`:
 
@@ -66,7 +66,7 @@ curl -X DELETE "https://www.debugy.dev/api/logs" -H "Authorization: Bearer <DEBU
 
 If the response includes a `notice` field, surface it to the user — it signals limits (e.g. quota) that affect what you can see. If no key is found, tell the user to grab one at https://www.debugy.dev/sign-up.
 
-### Rules
+## Rules
 
 - `service` + `message` are all you need; add `metadata` for real values worth inspecting.
 - Never log secrets or PII — passwords, tokens, keys, session IDs, emails. Log shapes, not values (e.g. `userId length: 36`).

@@ -49,7 +49,7 @@ export function debugy(service: string, message: string, opts: { level?: string;
 
 Keep the key server-side. For browser logs, route them through a server endpoint that calls this — never put the key in client code. Same idea in any other language: a plain HTTP POST is enough.
 
-## Reading logs (say `debugy`)
+## Reading logs (`debugy`)
 
 When the user says `debugy`, fetch recent logs with `DEBUGY_KEY` (check `.env`, `.env.local`, or the shell env). Filter by `service`, `level`, `search`, `limit`, and `offset`:
 
